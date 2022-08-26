@@ -42,29 +42,23 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 		HikariConfig hikariConfig = new HikariConfig();
 		hikariConfig.setJdbcUrl(
-				String.format("jdbc:mysql://%s:%d/%s?serverTimezone=UTC&useSSL=%b&trustServerCertificate=%b",
+				String.format(endpoint.uri(),
 						new Object[] { endpoint
 
 								.address().host(), Integer.valueOf(endpoint.address().port()), endpoint.database(),
 								Boolean.valueOf(endpoint.useSsl()), Boolean.valueOf(endpoint.useSsl()) }));
-		hikariConfig.setDriverClassName("com.mysql.cj.jdbc.Driver");
+		hikariConfig.setDriverClassName(endpoint.driver());
 		hikariConfig.setUsername(endpoint.username());
 		hikariConfig.setPassword(endpoint.password());
-		hikariConfig.addDataSourceProperty("cachePrepStmts", "true");
-		hikariConfig.addDataSourceProperty("prepStmtCacheSize", "250");
-		hikariConfig.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-		hikariConfig.addDataSourceProperty("useServerPrepStmts", "true");
-		hikariConfig.addDataSourceProperty("useLocalSessionState", "true");
-		hikariConfig.addDataSourceProperty("rewriteBatchedStatements", "true");
-		hikariConfig.addDataSourceProperty("cacheResultSetMetadata", "true");
-		hikariConfig.addDataSourceProperty("cacheServerConfiguration", "true");
-		hikariConfig.addDataSourceProperty("elideSetAutoCommits", "true");
-		hikariConfig.addDataSourceProperty("maintainTimeStats", "false");
-		hikariConfig.setMinimumIdle(2);
-		hikariConfig.setMaximumPoolSize(100);
-		hikariConfig.setConnectionTimeout(10000L);
-		hikariConfig.setLeakDetectionThreshold(4000L);
-		hikariConfig.setValidationTimeout(10000L);
+		for(Map.Entry<String, String> property : endpoint.options().entrySet()) {
+			hikariDataSource.addDataSourceProperty(property.getKey(), property.getValue());
+		}
+		hikariConfig.setMinimumIdle(endpoint.minimumIdle());
+		hikariConfig.setMaximumPoolSize(endpoint.maximumPoolSize());
+		hikariConfig.setConnectionTimeout(endpoint.connectionTimeout());
+		hikariConfig.setLeakDetectionThreshold(endpoint.leakDetectionThreshold());
+		hikariConfig.setValidationTimeout(endpoint.validationTimeout());
+		
 		this.hikariDataSource = new HikariDataSource(hikariConfig);
 
 		try (Connection con = hikariDataSource.getConnection()) {

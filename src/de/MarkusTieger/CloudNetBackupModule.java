@@ -66,8 +66,8 @@ public class CloudNetBackupModule extends DriverModule {
 	@ModuleTask(order = 64, event = ModuleLifeCycle.LOADED)
 	public void initConfig() {
 		this.cfg = readConfig(BackupStorageConfig.class,
-				() -> new BackupStorageConfig(false, true, new MySQLConnectionConfig(true, "insert_only", "secure",
-						false, "backup", new HostAndPort("127.0.0.1", 3306)), ".tmp"));
+				() -> new BackupStorageConfig(false, true, new MySQLConnectionConfig(true, MySQLConnectionConfig.DEFAULT_URI, "insert_only", "secure",
+						false, "backup", new HostAndPort("127.0.0.1", 3306), MySQLConnectionConfig.DEFAULT_DRIVER, MySQLConnectionConfig.DEFAULT_OPTIONS), ".tmp"));
 	}
 
 	@ModuleTask(event = ModuleLifeCycle.RELOADING)
