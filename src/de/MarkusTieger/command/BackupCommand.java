@@ -34,51 +34,19 @@ import eu.cloudnetservice.node.command.source.CommandSource;
 public class BackupCommand {
 
 	private static final RowBasedFormatter<BackupInfo> ENTRY_LIST_FORMATTER = RowBasedFormatter.<BackupInfo>builder()
-		    .defaultFormatter(
-		    		ColumnFormatter.builder()
-		    		.columnTitles(
-		    				new String[] {
-		    						"id",
-		    						"cloudnet-version",
-		    						"date"
-		    						}
-		    				)
-		    		.build()
-		    		)
-		    .column(BackupInfo::id)
-		    .column(BackupInfo::cloudNetVersion)
-		    .column(
-		    		(info) -> new Date(
-		    				info.date()
-		    				)
-		    		.toString()
-		    		)
-		    .build();
-	
-	private static final RowBasedFormatter<AdvancedBackupInfo> ENTRY_INFO_FORMATTER = RowBasedFormatter.<AdvancedBackupInfo>builder()
-		    .defaultFormatter(
-		    		ColumnFormatter.builder()
-		    		.columnTitles(
-		    				new String[] {
-		    						"id",
-		    						"cloudnet-version",
-		    						"services",
-		    						"date"
-		    						}
-		    				)
-		    		.build()
-		    		)
-		    .column(AdvancedBackupInfo::id)
-		    .column(AdvancedBackupInfo::cloudNetVersion)
-		    .column((info) -> Arrays.toString(info.services().stream().map(IBackupService::getName).toArray()))
-		    .column(
-		    		(info) -> new Date(
-		    				info.date()
-		    				)
-		    		.toString()
-		    		)
-		    .build();
-	
+			.defaultFormatter(
+					ColumnFormatter.builder().columnTitles(new String[] { "id", "cloudnet-version", "date" }).build())
+			.column(BackupInfo::id).column(BackupInfo::cloudNetVersion)
+			.column((info) -> new Date(info.date()).toString()).build();
+
+	private static final RowBasedFormatter<AdvancedBackupInfo> ENTRY_INFO_FORMATTER = RowBasedFormatter
+			.<AdvancedBackupInfo>builder()
+			.defaultFormatter(ColumnFormatter.builder()
+					.columnTitles(new String[] { "id", "cloudnet-version", "services", "date" }).build())
+			.column(AdvancedBackupInfo::id).column(AdvancedBackupInfo::cloudNetVersion)
+			.column((info) -> Arrays.toString(info.services().stream().map(IBackupService::getName).toArray()))
+			.column((info) -> new Date(info.date()).toString()).build();
+
 	@Parser(name = "serviceParser", suggestions = "serviceSuggestions")
 	public IBackupService<?> serviceParser(CommandContext<CommandSource> $, Queue<String> input) {
 		if ($ == null)
@@ -96,7 +64,7 @@ public class BackupCommand {
 
 		throw new ArgumentNotAvailableException("The Backup-Service \"" + name + "\" was not found.");
 	}
-	
+
 	@Suggestions("serviceSuggestions")
 	public List<String> serviceSuggestions(CommandContext<CommandSource> $, String input) {
 		return BackupSystem.getINSTANCE().getServices().stream().map(IBackupService::getName).toList();
@@ -107,7 +75,7 @@ public class BackupCommand {
 			@Argument(value = "service", parserName = "serviceParser") IBackupService<?> service) {
 		if (source == null)
 			throw new NullPointerException("source is marked non-null but is null");
-		
+
 		if (source.checkPermission("backups.create")) {
 			if (service == null) {
 				try {
@@ -128,27 +96,28 @@ public class BackupCommand {
 			source.sendMessage(I18n.trans("missing-command-permission"));
 		}
 	}
-	
+
 	@CommandMethod("backup|backups list|l [service]")
 	public void listBackups(CommandSource source,
 			@Argument(value = "service", parserName = "serviceParser") IBackupService<?> service) {
 		if (source == null)
 			throw new NullPointerException("source is marked non-null but is null");
-		
+
 		if (source.checkPermission("backups.list")) {
 			if (service == null) {
 				Map<String, BackupInfo> infos = new HashMap<>();
-				for(IBackupService<?> srv : BackupSystem.getINSTANCE().getServices()) {
+				for (IBackupService<?> srv : BackupSystem.getINSTANCE().getServices()) {
 					try {
-						for(BackupInfo info : srv.listBackups()) {
-							if(infos.containsKey(info.id())) continue;
+						for (BackupInfo info : srv.listBackups()) {
+							if (infos.containsKey(info.id()))
+								continue;
 							infos.put(info.id(), info);
 						}
-					} catch(Throwable e) {
+					} catch (Throwable e) {
 						e.printStackTrace();
 					}
 				}
-				
+
 				source.sendMessage(ENTRY_LIST_FORMATTER.format(infos.values()));
 			} else {
 				try {
@@ -162,7 +131,7 @@ public class BackupCommand {
 			source.sendMessage(I18n.trans("missing-command-permission"));
 		}
 	}
-	
+
 	@CommandMethod("backup|backups info|i <id>")
 	public void backupInfo(CommandSource source,
 			@Argument(value = "id", parserName = "backupParser") AdvancedBackupInfo info) {
@@ -171,30 +140,31 @@ public class BackupCommand {
 
 		if (info == null)
 			throw new NullPointerException("info is marked non-null but is null");
-		
+
 		if (source.checkPermission("backups.info")) {
 			source.sendMessage(ENTRY_INFO_FORMATTER.format(Collections.singleton(info)));
 		} else {
 			source.sendMessage(I18n.trans("missing-command-permission"));
 		}
 	}
-	
+
 	@Suggestions("backupSuggestions")
 	public List<String> backupSuggestions(CommandContext<CommandSource> $, String input) {
 		Map<String, BackupInfo> infos = new HashMap<>();
-		for(IBackupService<?> srv : BackupSystem.getINSTANCE().getServices()) {
+		for (IBackupService<?> srv : BackupSystem.getINSTANCE().getServices()) {
 			try {
-				for(BackupInfo info : srv.listBackups()) {
-					if(infos.containsKey(info.id())) continue;
+				for (BackupInfo info : srv.listBackups()) {
+					if (infos.containsKey(info.id()))
+						continue;
 					infos.put(info.id(), info);
 				}
-			} catch(Throwable e) {
+			} catch (Throwable e) {
 				e.printStackTrace();
 			}
 		}
 		return infos.keySet().stream().toList();
 	}
-	
+
 	@Parser(name = "backupParser", suggestions = "backupSuggestions")
 	public AdvancedBackupInfo backupParser(CommandContext<CommandSource> $, Queue<String> input) {
 		if ($ == null)
@@ -205,25 +175,27 @@ public class BackupCommand {
 
 		List<IBackupService<?>> services = new ArrayList<>();
 		BackupInfo info = null;
-		
+
 		for (IBackupService<?> srv : BackupSystem.getINSTANCE().getServices()) {
 
 			try {
-				if(!srv.exists(name)) continue;
-				
+				if (!srv.exists(name))
+					continue;
+
 				info = srv.get(name);
 				services.add(srv);
-			} catch(Throwable e) {
+			} catch (Throwable e) {
 				e.printStackTrace();
 			}
 
 		}
 
-		if(info == null) throw new ArgumentNotAvailableException("The Backup-Service \"" + name + "\" was not found.");
-	
+		if (info == null)
+			throw new ArgumentNotAvailableException("The Backup-Service \"" + name + "\" was not found.");
+
 		return new AdvancedBackupInfo(info.id(), info.cloudNetVersion(), info.date(), services);
 	}
-	
+
 	@CommandMethod("backup|backups restore|load <id> <service>")
 	public void restoreBackup(CommandSource source,
 			@Argument(value = "id", parserName = "backupParser") AdvancedBackupInfo info,
@@ -233,10 +205,10 @@ public class BackupCommand {
 
 		if (service == null)
 			throw new NullPointerException("service is marked non-null but is null");
-		
+
 		if (info == null)
 			throw new NullPointerException("info is marked non-null but is null");
-		
+
 		if (source.checkPermission("backups.restore")) {
 			try {
 				BackupSystem.getINSTANCE().restoreBackup(source, service, info.id());

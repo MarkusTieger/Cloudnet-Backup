@@ -43,6 +43,12 @@
 			"group": "net.lingala.zip4j",
 			"version": "2.11.1",
 			"repo": "MavenRepo"
+		},
+		{
+			"name": "zstd-jni",
+			"group": "com.github.luben",
+			"version": "1.5.2-3",
+			"repo": "MavenRepo"
 		}
 	],
 	"repositories": [

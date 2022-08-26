@@ -5,13 +5,15 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import de.MarkusTieger.archieve.AbstractArchiever;
+import de.MarkusTieger.archieve.Zip4jArchiever;
 import de.MarkusTieger.backup.BackupSystem;
 import de.MarkusTieger.backup.IBackupService;
 import de.MarkusTieger.command.BackupCommand;
-import de.MarkusTieger.compress.Compressor;
 import de.MarkusTieger.config.BackupStorageConfig;
-import de.MarkusTieger.config.MySQLConnectionConfig;
-import de.MarkusTieger.mysql.MySQLBackupService;
+import de.MarkusTieger.config.SQLConnectionConfig;
+import de.MarkusTieger.sql.SQLBackupService;
+import de.MarkusTieger.sql.SQLServerType;
 import eu.cloudnetservice.driver.module.ModuleLifeCycle;
 import eu.cloudnetservice.driver.module.ModuleTask;
 import eu.cloudnetservice.driver.module.driver.DriverModule;
@@ -32,10 +34,11 @@ public class CloudNetBackupModule extends DriverModule {
 		if (!cfg.enabled())
 			return;
 
-		Compressor.setPassword(Node.instance().config().clusterConfig().clusterId().toString());
+		AbstractArchiever.setPassword(Node.instance().config().clusterConfig().clusterId().toString());
+		AbstractArchiever.setInstance(new Zip4jArchiever());
 
 		if (cfg.mysql().enable()) {
-			MySQLBackupService service = new MySQLBackupService();
+			SQLBackupService service = new SQLBackupService();
 			try {
 				service.initialize(cfg.mysql());
 				services.add(service);
@@ -52,7 +55,6 @@ public class CloudNetBackupModule extends DriverModule {
 				system.startBackup(null);
 			} catch (IOException e) {
 				e.printStackTrace();
-				System.out.println("Backup failed.");
 			}
 		}
 
@@ -66,8 +68,11 @@ public class CloudNetBackupModule extends DriverModule {
 	@ModuleTask(order = 64, event = ModuleLifeCycle.LOADED)
 	public void initConfig() {
 		this.cfg = readConfig(BackupStorageConfig.class,
-				() -> new BackupStorageConfig(false, true, new MySQLConnectionConfig(true, MySQLConnectionConfig.DEFAULT_URI, "insert_only", "secure",
-						false, "backup", new HostAndPort("127.0.0.1", 3306), MySQLConnectionConfig.DEFAULT_DRIVER, MySQLConnectionConfig.DEFAULT_OPTIONS), ".tmp"));
+				() -> new BackupStorageConfig(false, true,
+						new SQLConnectionConfig(true, SQLConnectionConfig.DEFAULT_URI, "insert_only", "secure",
+								false, "backup", SQLServerType.MYSQL, new HostAndPort("127.0.0.1", 3306),
+								SQLConnectionConfig.DEFAULT_DRIVER, SQLConnectionConfig.DEFAULT_OPTIONS),
+						".tmp"));
 	}
 
 	@ModuleTask(event = ModuleLifeCycle.RELOADING)

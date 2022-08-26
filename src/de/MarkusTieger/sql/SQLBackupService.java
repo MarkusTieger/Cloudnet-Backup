@@ -1,4 +1,4 @@
-package de.MarkusTieger.mysql;
+package de.MarkusTieger.sql;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -27,30 +27,30 @@ import com.zaxxer.hikari.HikariDataSource;
 import de.MarkusTieger.backup.Backup;
 import de.MarkusTieger.backup.BackupInfo;
 import de.MarkusTieger.backup.IBackupService;
-import de.MarkusTieger.config.MySQLConnectionConfig;
+import de.MarkusTieger.config.SQLConnectionConfig;
 import de.MarkusTieger.data.SizedStreamData;
 import eu.cloudnetservice.node.command.source.CommandSource;
 
-public class MySQLBackupService implements IBackupService<MySQLConnectionConfig> {
+public class SQLBackupService implements IBackupService<SQLConnectionConfig> {
 
 	private HikariDataSource hikariDataSource;
 
 	private static final int SPLIT_SIZE = 8 * 1048576;
 
 	@Override
-	public void initialize(MySQLConnectionConfig endpoint) throws IOException {
+	public void initialize(SQLConnectionConfig endpoint) throws IOException {
 
+		SQLReader.setServerType(endpoint.serverType());
+		
 		HikariConfig hikariConfig = new HikariConfig();
-		hikariConfig.setJdbcUrl(
-				String.format(endpoint.uri(),
-						new Object[] { endpoint
+		hikariConfig.setJdbcUrl(String.format(endpoint.uri(), new Object[] { endpoint
 
-								.address().host(), Integer.valueOf(endpoint.address().port()), endpoint.database(),
-								Boolean.valueOf(endpoint.useSsl()), Boolean.valueOf(endpoint.useSsl()) }));
+				.address().host(), Integer.valueOf(endpoint.address().port()), endpoint.database(),
+				Boolean.valueOf(endpoint.useSsl()), Boolean.valueOf(endpoint.useSsl()) }));
 		hikariConfig.setDriverClassName(endpoint.driver());
 		hikariConfig.setUsername(endpoint.username());
 		hikariConfig.setPassword(endpoint.password());
-		for(Map.Entry<String, String> property : endpoint.options().entrySet()) {
+		for (Map.Entry<String, String> property : endpoint.options().entrySet()) {
 			hikariDataSource.addDataSourceProperty(property.getKey(), property.getValue());
 		}
 		hikariConfig.setMinimumIdle(endpoint.minimumIdle());
@@ -58,42 +58,42 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 		hikariConfig.setConnectionTimeout(endpoint.connectionTimeout());
 		hikariConfig.setLeakDetectionThreshold(endpoint.leakDetectionThreshold());
 		hikariConfig.setValidationTimeout(endpoint.validationTimeout());
-		
+
 		this.hikariDataSource = new HikariDataSource(hikariConfig);
 
 		try (Connection con = hikariDataSource.getConnection()) {
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS backups (updateId VARCHAR(255), version VARCHAR(255), time TIMESTAMP on update CURRENT_TIMESTAMP DEFAULT CURRENT_TIMESTAMP)")) {
+					SQLReader.read("create_backups_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS templates (updateId VARCHAR(255), name VARCHAR(255), file VARCHAR(255))")) {
+					SQLReader.read("create_templates_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS regions (updateId VARCHAR(255), name VARCHAR(255), filename VARCHAR(255), file VARCHAR(255))")) {
+					SQLReader.read("create_regions_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS worlds (updateId VARCHAR(255), name VARCHAR(255), file VARCHAR(255))")) {
+					SQLReader.read("create_worlds_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS playerdata (updateId VARCHAR(255), name VARCHAR(255), filename VARCHAR(255), file VARCHAR(255))")) {
+					SQLReader.read("create_playerdata_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS extra_files (updateId VARCHAR(255), name VARCHAR(255), file VARCHAR(255))")) {
+					SQLReader.read("create_extrafiles_table"))) {
 				statement.executeUpdate();
 			}
 
 			try (PreparedStatement statement = con.prepareStatement(
-					"CREATE TABLE IF NOT EXISTS files (updateId VARCHAR(255), file VARCHAR(255), id INT(255), data LONGBLOB)")) {
+					SQLReader.read("create_files_table"))) {
 				statement.executeUpdate();
 			}
 		} catch (SQLException e) {
@@ -114,13 +114,13 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 		Map<String, File> filemapping = new HashMap<>();
 
-		String prefix = "[MySQL-Backup-Service] ";
+		String prefix = "[SQL-Backup-Service] ";
 		source.sendMessage(prefix + "Starting Backup with ID: " + info.id() + "...");
 
 		try (Connection con = hikariDataSource.getConnection()) {
 
 			try (PreparedStatement statement = con
-					.prepareStatement("INSERT INTO backups (updateId, version) VALUES (?, ?)")) {
+					.prepareStatement(SQLReader.read("insert_backup"))) {
 				statement.setString(1, info.id());
 				statement.setString(2, info.cloudNetVersion());
 				statement.executeUpdate();
@@ -133,7 +133,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 				source.sendMessage(prefix + "Uploading Template \"" + entry.getKey() + "\" ...");
 
 				try (PreparedStatement statement = con
-						.prepareStatement("INSERT INTO templates (updateId, name, file) VALUES (?, ?, ?)")) {
+						.prepareStatement(SQLReader.read("insert_template"))) {
 					statement.setString(1, updateId);
 					statement.setString(2, entry.getKey());
 					statement.setString(3, file(filemapping, entry.getValue()));
@@ -155,7 +155,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 							+ value.getName() + "\" ...");
 
 					try (PreparedStatement statement = con.prepareStatement(
-							"INSERT INTO regions (updateId, name, filename, file) VALUES (?, ?, ?, ?)")) {
+							SQLReader.read("insert_region"))) {
 						statement.setString(1, updateId);
 						statement.setString(2, entry.getKey());
 						statement.setString(3, value.getName());
@@ -178,7 +178,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 				source.sendMessage(prefix + "Uploading World \"" + entry.getKey() + "\" ...");
 
 				try (PreparedStatement statement = con
-						.prepareStatement("INSERT INTO worlds (updateId, name, file) VALUES (?, ?, ?)")) {
+						.prepareStatement(SQLReader.read("insert_world"))) {
 					statement.setString(1, updateId);
 					statement.setString(2, entry.getKey());
 					statement.setString(3, file(filemapping, entry.getValue()));
@@ -201,7 +201,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 							+ value.getName() + "\" ...");
 
 					try (PreparedStatement statement = con.prepareStatement(
-							"INSERT INTO playerdata (updateId, name, filename, file) VALUES (?, ?, ?, ?)")) {
+							SQLReader.read("insert_playerdata"))) {
 						statement.setString(1, updateId);
 						statement.setString(2, entry.getKey());
 						statement.setString(3, value.getName());
@@ -224,7 +224,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 				source.sendMessage(prefix + "Uploading File \"" + entry.getKey() + "\" ...");
 
 				try (PreparedStatement statement = con
-						.prepareStatement("INSERT INTO extra_files (updateId, name, file) VALUES (?, ?, ?)")) {
+						.prepareStatement(SQLReader.read("insert_extrafiles"))) {
 					statement.setString(1, updateId);
 					statement.setString(2, entry.getKey());
 					statement.setString(3, file(filemapping, entry.getValue()));
@@ -254,7 +254,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 				for (SizedStreamData data : toUpload) {
 
 					try (PreparedStatement statement = con
-							.prepareStatement("INSERT INTO files (updateId, file, id, data) VALUES (?, ?, ?, ?)")) {
+							.prepareStatement(SQLReader.read("insert_files"))) {
 						statement.setString(1, updateId);
 						statement.setString(2, entry.getKey());
 						statement.setInt(3, pos);
@@ -350,7 +350,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			List<String> toDownload = new ArrayList<>();
 			try (PreparedStatement statement = con
-					.prepareStatement("SELECT `file` FROM files WHERE updateId = ? AND id = 0")) {
+					.prepareStatement(SQLReader.read("select_files_exclusive_data"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -369,7 +369,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 			for (String file : toDownload) {
 
 				try (PreparedStatement statement = con
-						.prepareStatement("SELECT * FROM files WHERE updateId = ? AND `file` = ? ORDER BY `id` ASC")) {
+						.prepareStatement(SQLReader.read("select_files_ordered_asc"))) {
 					statement.setString(1, updateId);
 					statement.setString(2, file);
 					try (ResultSet result = statement.executeQuery()) {
@@ -407,7 +407,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			source.sendMessage(prefix + "Arrange files into templates...");
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM templates WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_templates"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -426,7 +426,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			source.sendMessage(prefix + "Arrange files into regions...");
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM regions WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_regions"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -456,7 +456,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			source.sendMessage(prefix + "Arrange files into worlds...");
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM worlds WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_worlds"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -475,7 +475,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			source.sendMessage(prefix + "Arrange files into playerdata...");
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM playerdata WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_playerdata"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -505,7 +505,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 			source.sendMessage(prefix + "Arrange files into extra_files...");
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM extra_files WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_extrafiles"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 
@@ -534,7 +534,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 		try (Connection con = hikariDataSource.getConnection()) {
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM backups")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_backups"))) {
 				try (ResultSet result = statement.executeQuery()) {
 
 					while (result.next())
@@ -588,7 +588,7 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 	public boolean exists(String updateId) throws IOException {
 		try (Connection con = hikariDataSource.getConnection()) {
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM backups WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_backup"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
 					return result.next();
@@ -602,17 +602,19 @@ public class MySQLBackupService implements IBackupService<MySQLConnectionConfig>
 
 	@Override
 	public String getName() {
-		return "mysql";
+		return "sql";
 	}
 
 	@Override
 	public BackupInfo get(String updateId) throws IOException {
 		try (Connection con = hikariDataSource.getConnection()) {
 
-			try (PreparedStatement statement = con.prepareStatement("SELECT * FROM backups WHERE updateId = ?")) {
+			try (PreparedStatement statement = con.prepareStatement(SQLReader.read("select_backup"))) {
 				statement.setString(1, updateId);
 				try (ResultSet result = statement.executeQuery()) {
-					if(result.next()) return new BackupInfo(result.getString("updateId"), result.getString("version"), result.getTimestamp("time").getTime());
+					if (result.next())
+						return new BackupInfo(result.getString("updateId"), result.getString("version"),
+								result.getTimestamp("time").getTime());
 				}
 			}
 

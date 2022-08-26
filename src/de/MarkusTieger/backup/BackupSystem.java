@@ -1,8 +1,9 @@
 package de.MarkusTieger.backup;
 
-import static de.MarkusTieger.compress.Compressor.compress;
-import static de.MarkusTieger.compress.Compressor.compress_exclude;
-import static de.MarkusTieger.compress.Compressor.compress_include;
+import static de.MarkusTieger.archieve.StaticArchiever.compress;
+import static de.MarkusTieger.archieve.StaticArchiever.compress_exclude;
+import static de.MarkusTieger.archieve.StaticArchiever.compress_include;
+import static de.MarkusTieger.archieve.StaticArchiever.decompresseTo;
 
 import java.io.File;
 import java.io.IOException;
@@ -16,7 +17,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import de.MarkusTieger.compress.Compressor;
 import eu.cloudnetservice.driver.CloudNetDriver;
 import eu.cloudnetservice.node.command.source.CommandSource;
 import lombok.Getter;
@@ -51,7 +51,7 @@ public class BackupSystem {
 			source = CommandSource.console();
 
 		long start = System.currentTimeMillis();
-		
+
 		String prefix = "[Backup-System] ";
 
 		source.sendMessage(prefix + "Restoring Backup... " + updateId);
@@ -108,7 +108,7 @@ public class BackupSystem {
 				if (!f.exists())
 					f.mkdirs();
 
-				Compressor.decompresseTo(e.getValue(), f);
+				decompresseTo(e.getValue(), f);
 
 			} catch (URISyntaxException e1) {
 				throw new IOException("Can't parse URI", e1);
@@ -140,7 +140,7 @@ public class BackupSystem {
 				if (!f.exists())
 					f.mkdirs();
 
-				Compressor.decompresseTo(e.getValue(), f);
+				decompresseTo(e.getValue(), f);
 
 			} catch (URISyntaxException e1) {
 				throw new IOException("Can't parse URI", e1);
@@ -244,7 +244,7 @@ public class BackupSystem {
 					File f = new File(services, service_name);
 					if (!f.exists())
 						f.mkdirs();
-					Compressor.decompresseTo(e.getValue(), f);
+					decompresseTo(e.getValue(), f);
 
 				} else if (uri.getScheme().equalsIgnoreCase("cloudnet")) {
 
@@ -262,7 +262,7 @@ public class BackupSystem {
 
 					System.out.println(prefix + "Restoring Service File " + uri.getHost() + "/" + file_reason + " ...");
 
-					Compressor.decompresseTo(e.getValue(), rf);
+					decompresseTo(e.getValue(), rf);
 
 				} else
 					throw new IOException("Invalid Scheme for extra files: " + uri.getScheme());
@@ -276,7 +276,8 @@ public class BackupSystem {
 		source.sendMessage(prefix + "Cleaning...");
 		delete(tmp);
 
-		source.sendMessage(prefix + "Backup Successfully restored and" + " Took: " + (System.currentTimeMillis() - start));
+		source.sendMessage(
+				prefix + "Backup Successfully restored and" + " Took: " + (System.currentTimeMillis() - start));
 	}
 
 	public BackupInfo startBackup(CommandSource source) throws IOException {
