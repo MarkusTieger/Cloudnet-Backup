@@ -1,0 +1,6 @@
+de/MarkusTieger/mysql/MySQLBackupService.class
+de/MarkusTieger/config/BackupStorageConfig.class
+de/MarkusTieger/CloudNetBackupModule.class
+de/MarkusTieger/compress/Compressor.class
+de/MarkusTieger/config/MySQLConnectionConfig.class
+de/MarkusTieger/backup/IBackupService.class
